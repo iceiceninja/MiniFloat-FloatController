@@ -11,15 +11,16 @@
 #include <WiFi.h>
 #include <Wire.h>
 #include "MS5837.h"
-#include <OneWire.h> 
-#include <SoftwareSerial.h>
+// #include <OneWire.h> 
+// #include <SoftwareSerial.h>
 
 struct SensorData
 {
-  float[10] depth_data;
-  float[10] pressure_data; 
-  float[10] temperature_data;
-}
+  float depth_data[10];
+  float pressure_data[10]; 
+  float temperature_data[10];
+  // add accelerometer and gyroscopic sensor data 
+};
 
 // Replace with your network credentials
 const char* ssid     = "ESP32-Access-Point";
@@ -119,7 +120,7 @@ void performVerticalProfile()
   descend();
   
   // Occasionally take depth sensor data and when depth is the (relatively) same for n number of reads (or after timeout) proceed to next step
-  waitUntilFullyDescend();
+  waitUntilFullyDescent();
   
   // Take all other sensor data. This is the data that we will transmit to the mission control
   getSensorData();// Give this arrays or a struct for each sensor to put its recorded values
@@ -149,7 +150,7 @@ void getSensorData()
   // Update pressure and temperature readings
   // TODO: Take lots of sensor readings and store them in an array. then get the average or median?
   
-  sensor.read();
+  depthSensor.read();
 
   Serial.print("Pressure: ");
   Serial.print(depthSensor.pressure());
@@ -175,10 +176,10 @@ void sendSensorData(WiFiClient client)
   client.println("Example sensor data:");
   client.println("Temp: 65 Degrees Farenheit");
   client.println("PH: 1 billion (idk what would be normal)");
-  client.println("")
+  client.println("");
 }
 
-float summedAbsDiff(float num, float[] nums)
+float summedAbsDiff(float num, float nums[])
 {
   int array_size = sizeof(nums) / sizeof(nums[0]);
   int sum=0;
@@ -213,5 +214,5 @@ void waitUntilFullyDescent()
     float curr_depth = depthSensor.depth();
     cached_depths[counter%cache_size] = curr_depth;
     counter++;
-  }while(summedAbsDiff(curr_depth, cached_depths) <= depth_tolerance)
+  }while(summedAbsDiff(curr_depth, cached_depths) <= depth_tolerance);
 }
