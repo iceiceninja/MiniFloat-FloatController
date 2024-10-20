@@ -55,6 +55,10 @@ void setup() {
   }
 
   depthSensor.setFluidDensity(997); // double check and see if pool water has diff density. This should be freshwater density. 
+
+  //Initializing motor pins
+  pinMode(motorPin1, OUTPUT);
+  pinMode(motorPin2, OUTPUT);
 }
 
 void loop(){
@@ -131,6 +135,13 @@ void performVerticalProfile()
   // await further instructions. Probably just stop this funciton and return to loop
 }
 
+
+//Pins for controlling motors
+int motorPin1; // we can change later when we figure out pins
+int motorPin2;
+int enablePin;
+
+// MotorPin1 is descending, MotorPin2 is ascending
 bool allSensorCheck()
 {
   // this should return true if all sensors are able to be read and return a valid value.
@@ -140,10 +151,40 @@ bool allSensorCheck()
 void descend()
 {
   // logic to turn dc motor which uses syringe to deflate the bladder until the float starts to decend.
+
+  Serial.println("Descending...");
+
+  digitalWrite(motorPin1, HIGH);
+  digitalWrite(motorPin2, LOW);
+  analogWrite(enablePin, 127);
+
+  delay(1000);
+
+  digitalWrite(motorPin1, LOW);
+  digitalWrite(motorPin2, LOW);
+  analogWrite(enablePin, 0);
+
+  //Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
 }
+
 void ascend()
 {
   // logic to turn dc motor in direciton to inflate bladder until the float accends
+
+  Serial.println("Ascending...");
+
+  digitalWrite(motorPin1, LOW);
+  digitalWrite(motorPin2, HIGH);
+  analogWrite(enablePin, 127);
+
+  delay(1000);
+
+  digitalWrite(motorPin1, LOW);
+  digitalWrite(motorPin2, LOW);
+  analogWrite(enablePin, 0);
+
+  //Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
+
 }
 void getSensorData()
 {
