@@ -24,7 +24,7 @@ struct SensorData
 
 // Replace with your network credentials
 const char* ssid     = "ESP32-Access-Point";
-const char* password = "testing123";
+// const char* password = "testing123";
 
 // Set web server port number to 80
 WiFiServer server(80);
@@ -33,41 +33,52 @@ WiFiServer server(80);
 // Variable to store the HTTP request
 String header;
 
-MS5837 depthSensor;
+// MS5837 depthSensor;
+//Pins for controlling motors
+const int motorPin1 = 10; // we can change later when we figure out pins
+const int motorPin2 = 11;
+const int enablePin = 12;
 
 void setup() {
   Serial.begin(115200);
   Serial.print("Setting AP (Access Point)…");
   // Remove the password parameter, if you want the AP (Access Point) to be open
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ssid);
   IPAddress IP = WiFi.softAPIP();
+  server.begin();
   Serial.print("AP IP address: http://");
   Serial.println(IP);
   
-  Wire.begin(); // look into what this does
+  // Wire.begin(); // look into what this does
   // Init sensors
-  while (!depthSensor.init()) {
-    Serial.println("Init failed!");
-    Serial.println("Are SDA/SCL connected correctly?");
-    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
-    Serial.println("\n\n\n");
-    delay(5000);
-  }
 
-  depthSensor.setFluidDensity(997); // double check and see if pool water has diff density. This should be freshwater density. 
+  // while (!depthSensor.init()) {
+  //   Serial.println("Init failed!");
+  //   Serial.println("Are SDA/SCL connected correctly?");
+  //   Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+  //   Serial.println("\n\n\n");
+  //   delay(5000);
+  // }
 
-  //Initializing motor pins
-  pinMode(motorPin1, OUTPUT);
-  pinMode(motorPin2, OUTPUT);
+  // depthSensor.setFluidDensity(997); // double check and see if pool water has diff density. This should be freshwater density. 
+
+  // Initializing motor pins
+  // pinMode(motorPin1, OUTPUT);
+  // pinMode(motorPin2, OUTPUT);
+  Serial.println("Setup finished");
 }
 
 void loop(){
+  // Serial.println("loop started");
   WiFiClient client = server.available();   // Listen for incoming clients
 
-  if (client) {                             // If a new client connects,
+  if (client) {
+    bool doStart = false;
+    bool doRetrieve = false;                // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
     String currentLine = "";                // make a String to hold incoming data from the client
     while (client.connected()) {            // loop while the client's connected
+      // yield();
       if (client.available()) {             // if there's bytes to read from the client,
         char c = client.read();             // read a byte, then
         Serial.write(c);                    // print it out the serial monitor
@@ -85,15 +96,15 @@ void loop(){
             {
               Serial.println("Starting vertical Profile...");
               client.println("Starting vertical Profile...");
+              doStart = true;
               // verify that all electrical components are connected. Otherwise output error. allSensorCheck should output the error to client
-              if(allSensorCheck()){
-                performVerticalProfile();
-              }
+             
             }
-            else if(header.indexOf("GET /retrieve"))
+            else if(header.indexOf("GET /retrieve") >= 0)
             {
               Serial.println("Displaying sensor data...");
               client.println("Displaying sensor data...");
+              Serial.println("Test test: we do retrieve");
               sendSensorData(client);
             }
 
@@ -109,12 +120,21 @@ void loop(){
         }
       }
     }
+    
     // Clear the header variable
     header = "";
+    
     // Close the connection
     client.stop();
     Serial.println("Client disconnected.");
     Serial.println("");
+    
+    if(doStart)
+    {
+      Serial.println("Test test: we do start");
+      allSensorCheck();
+      performVerticalProfile();
+    }
   }
 }
 
@@ -136,10 +156,7 @@ void performVerticalProfile()
 }
 
 
-//Pins for controlling motors
-int motorPin1; // we can change later when we figure out pins
-int motorPin2;
-int enablePin;
+
 
 // MotorPin1 is descending, MotorPin2 is ascending
 bool allSensorCheck()
@@ -164,7 +181,7 @@ void descend()
   digitalWrite(motorPin2, LOW);
   analogWrite(enablePin, 0);
 
-  //Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
+  // Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
 }
 
 void ascend()
@@ -183,7 +200,7 @@ void ascend()
   digitalWrite(motorPin2, LOW);
   analogWrite(enablePin, 0);
 
-  //Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
+  // Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
 
 }
 void getSensorData()
@@ -191,25 +208,25 @@ void getSensorData()
   // Update pressure and temperature readings
   // TODO: Take lots of sensor readings and store them in an array. then get the average or median?
   
-  depthSensor.read();
+  // depthSensor.read();
 
-  Serial.print("Pressure: ");
-  Serial.print(depthSensor.pressure());
-  Serial.println(" mbar");
+  // Serial.print("Pressure: ");
+  // Serial.print(depthSensor.pressure());
+  // Serial.println(" mbar");
 
-  Serial.print("Temperature: ");
-  Serial.print(depthSensor.temperature());
-  Serial.println(" deg C");
+  // Serial.print("Temperature: ");
+  // Serial.print(depthSensor.temperature());
+  // Serial.println(" deg C");
 
-  Serial.print("Depth: ");
-  Serial.print(depthSensor.depth());
-  Serial.println(" m");
+  // Serial.print("Depth: ");
+  // Serial.print(depthSensor.depth());
+  // Serial.println(" m");
 
-  Serial.print("Altitude: ");
-  Serial.print(depthSensor.altitude());    // THis is probably not needed
-  Serial.println(" m above mean sea level");
+  // Serial.print("Altitude: ");
+  // Serial.print(depthSensor.altitude());    // THis is probably not needed
+  // Serial.println(" m above mean sea level");
 
-  delay(1000); // have this in a loop? 
+  // delay(1000); // have this in a loop? 
 }
 
 void sendSensorData(WiFiClient client)
@@ -241,19 +258,19 @@ float summedAbsDiff(float num, float nums[])
 // maybe include a timeout or something that tracks time and when time runs out then it exits function regardless. (10 to 15 secs maybe?)
 void waitUntilFullyDescent()
 {
-  int cache_size = 5;
-  float cached_depths[cache_size];
-  float curr_depth;
-  int counter=0;
+  // int cache_size = 5;
+  // float cached_depths[cache_size];
+  // float curr_depth;
+  // int counter=0;
 
-  // since depth is measured in meters, have a low tolerance so we know when we have hit the bottom
-  // This should be a tolerance of 1cm which means that the summed absolute differences in depth need to be <= 1 cm for use to consider ourselves at the bottom
-  const int depth_tolerance = 0.01; 
+  // // since depth is measured in meters, have a low tolerance so we know when we have hit the bottom
+  // // This should be a tolerance of 1cm which means that the summed absolute differences in depth need to be <= 1 cm for use to consider ourselves at the bottom
+  // const int depth_tolerance = 0.01; 
   
-  do
-  {
-    float curr_depth = depthSensor.depth();
-    cached_depths[counter%cache_size] = curr_depth;
-    counter++;
-  }while(summedAbsDiff(curr_depth, cached_depths) <= depth_tolerance);
+  // do
+  // {
+  //   float curr_depth = depthSensor.depth();
+  //   cached_depths[counter%cache_size] = curr_depth;
+  //   counter++;
+  // }while(summedAbsDiff(curr_depth, cached_depths) <= depth_tolerance);
 }
