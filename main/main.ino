@@ -2,16 +2,22 @@
 // try below command
 // sudo chmod a+rw /dev/ttyUSB0
 
+//  When making a request to ESP do as follows:
+// http://192.168.4.1/start
+// http://192.168.4.1/retrieve
+
+//  Below are two different libraries for reading temp sensor. First is official and second was recommeended by someone on internet.
+//https://github.com/sparkfun/simple_sketches/blob/master/DS18B20/DS18B20.ino
+//https://github.com/milesburton/Arduino-Temperature-Control-Library/blob/master/examples/Simple/Simple.ino 
 
 // TODO:
 // - DC Motor library and code
 // - Temperature sensor library and code
-// - Gyroscopic and accelerometer library and code
 
 #include <WiFi.h>
 #include <Wire.h>
 #include "MS5837.h"
-// #include <OneWire.h> 
+#include <OneWire.h> 
 // #include <SoftwareSerial.h>
 
 struct SensorData
@@ -19,17 +25,20 @@ struct SensorData
   float depth_data[10];
   float pressure_data[10]; 
   float temperature_data[10];
-  // add accelerometer and gyroscopic sensor data 
 };
 
 // Replace with your network credentials
 const char* ssid     = "ESP32-Access-Point";
-// const char* password = "testing123";
 
 // Set web server port number to 80
 WiFiServer server(80);
 
+int DS18S20_Pin = 4; //DS18S20 Signal pin on digital 2
+char tmpstring[10]; // remove this and use sensorData struct (i think) 
 
+//Temperature chip i/o
+OneWire ds(DS18S20_Pin);  // on digital pin 2
+// SoftwareSerial display(3, 2);
 // Variable to store the HTTP request
 String header;
 
@@ -51,7 +60,7 @@ void setup() {
   
   // Wire.begin(); // look into what this does
   // Init sensors
-
+  // Have a prep phase before submerging where we take care of this? That way if there is an issue we can let client know
   // while (!depthSensor.init()) {
   //   Serial.println("Init failed!");
   //   Serial.println("Are SDA/SCL connected correctly?");
@@ -66,6 +75,13 @@ void setup() {
   // pinMode(motorPin1, OUTPUT);
   // pinMode(motorPin2, OUTPUT);
   Serial.println("Setup finished");
+  if(server)
+  {
+    Serial.println("server is setup correctly!");
+  }else
+  {
+    Serial.println("ERROR setting up server!");
+  }
 }
 
 void loop(){
@@ -107,6 +123,12 @@ void loop(){
               Serial.println("Test test: we do retrieve");
               sendSensorData(client);
             }
+            else if(header.indexOf("GET /status") >= 0)
+            {
+              // have code here that prints a status string that we can change 
+              // throughout the code. This way if something feels wrong the user 
+              // can query the status of the esp and see if maybe a sensor init has failed
+            }
 
             // The HTTP response ends with another blank line
             client.println();
@@ -129,11 +151,12 @@ void loop(){
     Serial.println("Client disconnected.");
     Serial.println("");
     
+    // This is separated because i want the esp to respond to the client's http request before submerging
     if(doStart)
     {
       Serial.println("Test test: we do start");
-      allSensorCheck();
-      performVerticalProfile();
+      // allSensorCheck();
+      // performVerticalProfile();
     }
   }
 }
@@ -272,5 +295,51 @@ void waitUntilFullyDescent()
   //   float curr_depth = depthSensor.depth();
   //   cached_depths[counter%cache_size] = curr_depth;
   //   counter++;
+  // // Add a delay here of 1 sec or something?
   // }while(summedAbsDiff(curr_depth, cached_depths) <= depth_tolerance);
+}
+
+float getTemp(){
+  //returns the temperature from one DS18S20 in DEG Celsius
+
+  byte data[12];
+  byte addr[8];
+
+  if ( !ds.search(addr)) {
+      //no more sensors on chain, reset search
+      ds.reset_search();
+      return -1000;
+  }
+
+  if ( OneWire::crc8( addr, 7) != addr[7]) {
+      Serial.println("CRC is not valid!");
+      return -1000;
+  }
+
+  if ( addr[0] != 0x10 && addr[0] != 0x28) {
+      Serial.print("Device is not recognized");
+      return -1000;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+  byte present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE); // Read Scratchpad
+
+  for (int i = 0; i < 9; i++) { // we need 9 bytes (I believe this is able to be changes to 11 (for percision I think))
+    data[i] = ds.read();
+  }
+
+  ds.reset_search();
+
+  byte MSB = data[1];
+  byte LSB = data[0];
+
+  float tempRead = ((MSB << 8) | LSB); //using two's compliment
+  float TemperatureSum = tempRead / 16;
+
+  return (TemperatureSum * 18 + 5)/10 + 32;
 }
