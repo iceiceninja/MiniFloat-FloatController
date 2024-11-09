@@ -18,6 +18,7 @@
 #include <Wire.h>
 #include "MS5837.h"
 #include <OneWire.h> 
+#include <stdlib.h>
 // #include <SoftwareSerial.h>
 
 struct SensorData
@@ -32,7 +33,7 @@ const char* ssid     = "ESP32-Access-Point";
 
 // Set web server port number to 80
 WiFiServer server(80);
-
+struct SensorData sensorData;
 int DS18S20_Pin = 4; //DS18S20 Signal pin on digital 2
 char tmpstring[10]; // remove this and use sensorData struct (i think) 
 
@@ -42,7 +43,7 @@ OneWire ds(DS18S20_Pin);  // on digital pin 2
 // Variable to store the HTTP request
 String header;
 
-// MS5837 depthSensor;
+MS5837 depthSensor;
 //Pins for controlling motors
 const int motorPin1 = 10; // we can change later when we figure out pins
 const int motorPin2 = 11;
@@ -61,15 +62,15 @@ void setup() {
   // Wire.begin(); // look into what this does
   // Init sensors
   // Have a prep phase before submerging where we take care of this? That way if there is an issue we can let client know
-  // while (!depthSensor.init()) {
-  //   Serial.println("Init failed!");
-  //   Serial.println("Are SDA/SCL connected correctly?");
-  //   Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
-  //   Serial.println("\n\n\n");
-  //   delay(5000);
-  // }
+  while (!depthSensor.init()) {
+    Serial.println("Init failed!");
+    Serial.println("Are SDA/SCL connected correctly?");
+    Serial.println("Blue Robotics Bar30: White=SDA, Green=SCL");
+    Serial.println("\n\n\n");
+    delay(5000);
+  }
 
-  // depthSensor.setFluidDensity(997); // double check and see if pool water has diff density. This should be freshwater density. 
+  depthSensor.setFluidDensity(997); // double check and see if pool water has diff density. This should be freshwater density. 
 
   // Initializing motor pins
   // pinMode(motorPin1, OUTPUT);
@@ -226,29 +227,22 @@ void ascend()
   // Most definetely needs editing, We need to add time for how long the motors will stay on for but hopefully this works as a reference on how using the motor pins work
 
 }
-void getSensorData()
+void getSensorData() //
 {
+  
   // Update pressure and temperature readings
   // TODO: Take lots of sensor readings and store them in an array. then get the average or median?
-  
-  // depthSensor.read();
+  getDepthData();
+  sensorData.temperature_data[0] = getTemp();
 
-  // Serial.print("Pressure: ");
-  // Serial.print(depthSensor.pressure());
-  // Serial.println(" mbar");
+  Serial.print("First depth recorded: ");
+  Serial.println(sensorData.depth_data[0]);
 
-  // Serial.print("Temperature: ");
-  // Serial.print(depthSensor.temperature());
-  // Serial.println(" deg C");
+  Serial.print("First pressure (mbar) recorded: ");
+  Serial.println(sensorData.pressure_data[0]);
 
-  // Serial.print("Depth: ");
-  // Serial.print(depthSensor.depth());
-  // Serial.println(" m");
-
-  // Serial.print("Altitude: ");
-  // Serial.print(depthSensor.altitude());    // THis is probably not needed
-  // Serial.println(" m above mean sea level");
-
+  Serial.print("First temp recorded: ");
+  Serial.println(sensorData.temperature_data[0]);
   // delay(1000); // have this in a loop? 
 }
 
@@ -340,6 +334,36 @@ float getTemp(){
 
   float tempRead = ((MSB << 8) | LSB); //using two's compliment
   float TemperatureSum = tempRead / 16;
-
+  // sensorData->temperture_data=(TemperatureSum * 18 + 5)/10 + 32;
   return (TemperatureSum * 18 + 5)/10 + 32;
+}
+
+void getDepthData()
+{
+  // can have index passed in
+  depthSensor.read();
+
+  Serial.print("Pressure: ");
+  Serial.print(depthSensor.pressure());
+  sensorData.pressure_data[0] = depthSensor.pressure();
+  Serial.println(" mbar");
+
+  Serial.print("Temperature: ");
+  Serial.print(depthSensor.temperature());
+  sensorData.temperature_data[0] = depthSensor.temperature();
+  Serial.println(" deg C");
+
+  Serial.print("Depth: ");
+  Serial.print(depthSensor.depth());
+  sensorData.depth_data[0] = depthSensor.depth();
+  
+  Serial.println(" m");
+
+  // Serial.print("Altitude: ");
+  // Serial.print(depthSensor.altitude());    // THis is probably not needed
+  // Serial.println(" m above mean sea level");
+}
+void depthSensorTest()
+{
+
 }
